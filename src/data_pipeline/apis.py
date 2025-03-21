@@ -23,10 +23,13 @@ class DiscordClient:
         self.user_id = user_id
         self.headers = {'Authorization': f'Bot {bot_token}'}
 
-    def get_monthly_messages(self, channel_ids, any_user=False):
+    def get_monthly_messages(self, channel_ids, initial_date=None, any_user=False):
         """Fetch messages sent by the user this month in specified channels."""
         today = datetime.date.today()
-        start_of_month = datetime.date(today.year, today.month, 1)
+        if initial_date is not None:
+            start_of_month = datetime.date(*initial_date)
+        else:
+            start_of_month = datetime.date(today.year, today.month, 1)
         messages = []
         for channel_id in channel_ids:
             url = f'https://discord.com/api/v10/channels/{channel_id}/messages'
@@ -44,6 +47,9 @@ class DiscordClient:
                         break
                     if msg['author']['id'] == self.user_id or any_user:
                         messages.append(msg)
+                    if "thread" in msg:
+                        thread = self.get_monthly_messages([msg["thread"]["id"]], initial_date, any_user)
+                        msg["thread"] = thread
                 params['before'] = channel_messages[-1]['id']  # Paginate
         return messages
 
@@ -74,10 +80,14 @@ class GitHubClient:
         self.username = username
         self.headers = {'Authorization': f'token {token}'}
 
-    def get_monthly_activity(self):
+    def get_monthly_activity(self, initial_date=None):
         """Fetch GitHub events performed by the user this month."""
         today = datetime.date.today()
-        start_of_month = datetime.date(today.year, today.month, 1)
+        if initial_date is not None:
+            start_of_month = datetime.date(*initial_date)
+        else:
+            start_of_month = datetime.date(today.year, today.month, 1)
+        
         url = f'https://api.github.com/users/{self.username}/events'
         params = {'per_page': 100}  # Max events per page
         events = []
